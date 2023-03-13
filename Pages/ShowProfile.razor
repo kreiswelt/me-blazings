@@ -2,6 +2,7 @@
 
 @using Microsoft.Identity.Web
 @using Microsoft.Graph
+@using Microsoft.Graph.Models
 @inject Microsoft.Graph.GraphServiceClient GraphServiceClient
 @inject MicrosoftIdentityConsentAndConditionalAccessHandler ConsentHandler
 
@@ -34,7 +35,15 @@ else
     {
         try
         {
-            user = await GraphServiceClient.Me.Request().GetAsync();
+            user = await GraphServiceClient.Me
+                .GetAsync(requestConfiguration => 
+                {
+                    requestConfiguration.QueryParameters.Select = new string[] {
+                        "displayName",
+                        "mail",
+                        "userPrincipalName",
+                    };
+                });
         }
         catch (Exception ex)
         {

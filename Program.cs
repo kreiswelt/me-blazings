@@ -1,12 +1,7 @@
-using Microsoft.AspNetCore.Authentication;
+using me_blazings.Extensions;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.Identity.Web;
 using Microsoft.Identity.Web.UI;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Components;
-using Microsoft.AspNetCore.Components.Web;
-using Microsoft.AspNetCore.Mvc.Authorization;
-using Graph = Microsoft.Graph;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -16,8 +11,9 @@ var initialScopes = builder.Configuration["DownstreamApi:Scopes"]?.Split(' ');
 builder.Services.AddAuthentication(OpenIdConnectDefaults.AuthenticationScheme)
     .AddMicrosoftIdentityWebApp(builder.Configuration.GetSection("AzureAd"))
         .EnableTokenAcquisitionToCallDownstreamApi(initialScopes)
-            .AddMicrosoftGraph(builder.Configuration.GetSection("DownstreamApi"))
             .AddInMemoryTokenCaches();
+
+builder.Services.AddMicrosoftGraphClient();
 builder.Services.AddControllersWithViews()
     .AddMicrosoftIdentityUI();
 
