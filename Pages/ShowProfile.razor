@@ -25,6 +25,10 @@ else
             <td>Name</td>
             <td>@user.DisplayName</td>
         </tr>
+        <tr>
+            <td>Email</td>
+            <td>@(user.Mail ?? user.UserPrincipalName ?? string.Empty)</td>
+        </tr>
     </table>
 }
 

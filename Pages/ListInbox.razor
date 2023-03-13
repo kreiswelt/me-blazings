@@ -1,0 +1,77 @@
+﻿@page "/listinbox"
+@inject Microsoft.Graph.GraphServiceClient GraphServiceClient
+
+<PageTitle>List My Inbox</PageTitle>
+
+<h1>My Inbox</h1>
+
+@if (messages == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Subject</th>
+                <th>Sender</th>
+                <th>Status</th>
+                <th>Received Time</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var mail in messages)
+            {
+                <tr>
+                    <td>@mail.Subject</td>
+                    <td>@mail.Sender</td>
+                    <td>@mail.Status</td>
+                    <td>@mail.ReceivedTime</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<MailMessage> messages = new List<MailMessage>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var messageArray = await GraphServiceClient.Me
+            .MailFolders["Inbox"]
+            .Messages
+            .GetAsync(requestConfiguration =>
+            {
+                requestConfiguration.QueryParameters.Select = new string[] {
+                    "from",
+                    "isRead",
+                    "receivedDateTime",
+                    "subject"
+                };
+                requestConfiguration.QueryParameters.Top = 10;
+                requestConfiguration.QueryParameters.Orderby = new string[] {
+                    "receivedDateTime DESC"
+                };
+            });
+
+        if (messageArray?.Value?.Count > 0) {
+            messageArray?.Value?.ForEach(message => {
+                messages.Add(new MailMessage{
+                    Subject = message.Subject ?? "NO SUBJECT",
+                    Sender = message.From?.EmailAddress?.Name,
+                    Status = message.IsRead!.Value ? "Read" : "Unread",
+                    ReceivedTime = message.ReceivedDateTime!.Value.DateTime
+                });
+            });
+        }
+    }
+
+    public class MailMessage {
+        public string Subject = string.Empty;
+        public string? Sender;
+        public string Status = string.Empty;
+        public DateTime ReceivedTime;
+    }
+}
