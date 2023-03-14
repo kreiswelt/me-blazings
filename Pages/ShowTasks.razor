@@ -1,0 +1,53 @@
+﻿@page "/showtasks"
+@inject Microsoft.Graph.GraphServiceClient GraphServiceClient
+
+<PageTitle>Tasks</PageTitle>
+
+<h1>Todo</h1>
+
+@if (todoList == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Name</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var todo in todoList)
+            {
+                <tr>
+                    <td>@todo.Name</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<Todo> todoList = new List<Todo>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var todoArray = await GraphServiceClient.Me
+            .Todo
+            .Lists
+            .GetAsync();
+
+        if (todoArray?.Value?.Count > 0) {
+            todoArray?.Value?.ForEach(todo => {
+                todoList.Add(new Todo{
+                    Name = todo.DisplayName ?? "NO DISPLAY NAME",
+                });
+            });
+        }
+    }
+
+    public class Todo {
+        public string Name = string.Empty;
+    }
+}
