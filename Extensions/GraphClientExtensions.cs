@@ -7,6 +7,12 @@ namespace me_blazings.Extensions;
 
 public static class GraphClientExtensions
 {
+    public static IServerSideBlazorBuilder AddMicrosoftGraphClient(this IServerSideBlazorBuilder builder)
+    {
+        builder.Services.AddMicrosoftGraphClient();
+        return builder;
+    }
+
     public static IServiceCollection AddMicrosoftGraphClient(this IServiceCollection services)
     {
         services.AddScoped(serviceProvider =>

@@ -13,7 +13,6 @@ builder.Services.AddAuthentication(OpenIdConnectDefaults.AuthenticationScheme)
         .EnableTokenAcquisitionToCallDownstreamApi(initialScopes)
             .AddInMemoryTokenCaches();
 
-builder.Services.AddMicrosoftGraphClient();
 builder.Services.AddControllersWithViews()
     .AddMicrosoftIdentityUI();
 
@@ -25,6 +24,7 @@ builder.Services.AddAuthorization(options =>
 
 builder.Services.AddRazorPages();
 builder.Services.AddServerSideBlazor()
+    .AddMicrosoftGraphClient()
     .AddMicrosoftIdentityConsentHandler();
 
 var app = builder.Build();
