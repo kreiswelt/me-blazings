@@ -76,16 +76,22 @@ else
         }
         catch (Exception ex)
         {
-            var oDataError = (ex as ODataError);
-            if (oDataError?.Error != null && "ErrorAccessDenied".Equals(oDataError.Error.Code, StringComparison.OrdinalIgnoreCase))
+            try
             {
-                Logger.LogError($"Error: {oDataError.Error.Message}");
+                ConsentHandler.HandleException(ex);
+            }
+            catch (ODataError oDataError)
+            {
+                if (oDataError?.Error != null && "ErrorAccessDenied".Equals(oDataError.Error.Code, StringComparison.OrdinalIgnoreCase))
+                {
+                    Logger.LogError($"Error: {oDataError.Error.Message}");
 
-                var challenger = new MicrosoftIdentityWebChallengeUserException(
-                    new MsalUiRequiredException(MsalError.InvalidGrantError, oDataError.Error.Message),
-                    new[] { "Mail.Read" });
+                    var exception = new MicrosoftIdentityWebChallengeUserException(
+                        new MsalUiRequiredException(MsalError.InvalidGrantError, oDataError.Error.Message),
+                        new[] { "Mail.Read" });
 
-                ConsentHandler.HandleException(challenger);
+                    ConsentHandler.HandleException(exception);
+                }
             }
         }
     }
