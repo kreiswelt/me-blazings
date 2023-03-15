@@ -1,5 +1,10 @@
 ﻿@page "/showmessages"
+@using Microsoft.Graph.Models.ODataErrors;
+@using Microsoft.Identity.Client;
+@using Microsoft.Identity.Web
 @inject Microsoft.Graph.GraphServiceClient GraphServiceClient
+@inject MicrosoftIdentityConsentAndConditionalAccessHandler ConsentHandler
+@inject ILogger<ShowMessages> Logger
 
 <PageTitle>Inbox</PageTitle>
 
@@ -39,32 +44,49 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        var messageArray = await GraphServiceClient.Me
-            .MailFolders["Inbox"]
-            .Messages
-            .GetAsync(requestConfiguration =>
-            {
-                requestConfiguration.QueryParameters.Select = new string[] {
-                    "from",
-                    "isRead",
-                    "receivedDateTime",
-                    "subject"
-                };
-                requestConfiguration.QueryParameters.Top = 10;
-                requestConfiguration.QueryParameters.Orderby = new string[] {
-                    "receivedDateTime DESC"
-                };
-            });
-
-        if (messageArray?.Value?.Count > 0) {
-            messageArray?.Value?.ForEach(message => {
-                messages.Add(new MailMessage{
-                    Subject = message.Subject ?? "NO SUBJECT",
-                    Sender = message.From?.EmailAddress?.Name,
-                    Status = message.IsRead!.Value ? "Read" : "Unread",
-                    ReceivedTime = message.ReceivedDateTime!.Value.DateTime
+        try
+        {
+            var messageArray = await GraphServiceClient.Me
+                .MailFolders["Inbox"]
+                .Messages
+                .GetAsync(requestConfiguration =>
+                {
+                    requestConfiguration.QueryParameters.Select = new string[] {
+                        "from",
+                        "isRead",
+                        "receivedDateTime",
+                        "subject"
+                    };
+                    requestConfiguration.QueryParameters.Top = 10;
+                    requestConfiguration.QueryParameters.Orderby = new string[] {
+                        "receivedDateTime DESC"
+                    };
                 });
-            });
+
+            if (messageArray?.Value?.Count > 0) {
+                messageArray?.Value?.ForEach(message => {
+                    messages.Add(new MailMessage{
+                        Subject = message.Subject ?? "NO SUBJECT",
+                        Sender = message.From?.EmailAddress?.Name,
+                        Status = message.IsRead!.Value ? "Read" : "Unread",
+                        ReceivedTime = message.ReceivedDateTime!.Value.DateTime
+                    });
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            var oDataError = (ex as ODataError);
+            if (oDataError?.Error != null && "ErrorAccessDenied".Equals(oDataError.Error.Code, StringComparison.OrdinalIgnoreCase))
+            {
+                Logger.LogError($"Error: {oDataError.Error.Message}");
+
+                var challenger = new MicrosoftIdentityWebChallengeUserException(
+                    new MsalUiRequiredException(MsalError.InvalidGrantError, oDataError.Error.Message),
+                    new[] { "Mail.Read" });
+
+                ConsentHandler.HandleException(challenger);
+            }
         }
     }
 

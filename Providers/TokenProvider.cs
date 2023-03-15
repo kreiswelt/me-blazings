@@ -14,7 +14,7 @@ public class TokenProvider : IAccessTokenProvider
     public async Task<string> GetAuthorizationTokenAsync(Uri uri, Dictionary<string, object>? additionalAuthenticationContext = default,
         CancellationToken cancellationToken = default)
     {
-        var token = await _tokenAcquisition.GetAccessTokenForUserAsync(new[] { "User.Read", "Mail.Read", "Tasks.Read" });
+        var token = await _tokenAcquisition.GetAccessTokenForUserAsync(new[] { "User.Read" });
         return token;
     }
 

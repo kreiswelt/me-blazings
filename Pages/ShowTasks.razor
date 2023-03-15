@@ -1,5 +1,10 @@
 ﻿@page "/showtasks"
+@using Microsoft.Graph.Models.ODataErrors;
+@using Microsoft.Identity.Client;
+@using Microsoft.Identity.Web
 @inject Microsoft.Graph.GraphServiceClient GraphServiceClient
+@inject MicrosoftIdentityConsentAndConditionalAccessHandler ConsentHandler
+@inject ILogger<ShowTasks> Logger
 
 <PageTitle>Tasks</PageTitle>
 
@@ -33,17 +38,34 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        var todoArray = await GraphServiceClient.Me
-            .Todo
-            .Lists
-            .GetAsync();
+        try
+        {
+            var todoArray = await GraphServiceClient.Me
+                .Todo
+                .Lists
+                .GetAsync();
 
-        if (todoArray?.Value?.Count > 0) {
-            todoArray?.Value?.ForEach(todo => {
-                todoList.Add(new Todo{
-                    Name = todo.DisplayName ?? "NO DISPLAY NAME",
+            if (todoArray?.Value?.Count > 0) {
+                todoArray?.Value?.ForEach(todo => {
+                    todoList.Add(new Todo{
+                      Name = todo.DisplayName ?? "NO DISPLAY NAME",
+                  });
                 });
-            });
+            }
+        }
+        catch (Exception ex)
+        {
+            var oDataError = (ex as ODataError);
+            if (oDataError?.Error != null && "ErrorAccessDenied".Equals(oDataError.Error.Code, StringComparison.OrdinalIgnoreCase))
+            {
+                Logger.LogError($"Error: {oDataError.Error.Message}");
+
+                var challenger = new MicrosoftIdentityWebChallengeUserException(
+                    new MsalUiRequiredException(MsalError.InvalidGrantError, oDataError.Error.Message),
+                    new[] { "Tasks.Read" });
+
+                ConsentHandler.HandleException(challenger);
+            }
         }
     }
 
