@@ -1,0 +1,108 @@
+﻿@page "/showevents"
+@using Microsoft.Graph.Models.ODataErrors;
+@using Microsoft.Identity.Client;
+@using Microsoft.Identity.Web
+@using me_blazings.Extensions;
+@inject Microsoft.Graph.GraphServiceClient GraphServiceClient
+@inject MicrosoftIdentityConsentAndConditionalAccessHandler ConsentHandler
+@inject ILogger<ShowEvents> Logger
+
+<PageTitle>Events</PageTitle>
+
+<h1>Events</h1>
+
+@if (calendarEventList == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Subject</th>
+                <th>Preview</th>
+                <th>Organizer</th>
+                <th>Attendees</th>
+                <th>Start</th>
+                <th>End</th>
+                <th>Location</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var calendarEvent in calendarEventList)
+            {
+                <tr>
+                    <td>@calendarEvent.Subject</td>
+                    <td>@calendarEvent.Preview</td>
+                    <td>@calendarEvent.Organizer</td>
+                    <td>@calendarEvent.Attendees</td>
+                    <td>@calendarEvent.Start?.ToString("U")</td>
+                    <td>@calendarEvent.End?.ToString("U")</td>
+                    <td>@calendarEvent.Location</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<CalendarEvent> calendarEventList = new List<CalendarEvent>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var calendarEventArray = await GraphServiceClient.Me
+                .Events
+                .GetAsync(requestConfiguration =>
+                {
+                    requestConfiguration.QueryParameters.Select = new string[] { "subject", "bodyPreview", "organizer", "attendees", "start", "end", "location" };
+                });
+
+            if (calendarEventArray?.Value?.Count > 0) {
+                calendarEventArray?.Value?.ForEach(calendarEvent => {
+                    calendarEventList.Add(new CalendarEvent {
+                        Subject = calendarEvent.Subject ?? "NO SUBJECT",
+                        Preview = calendarEvent.BodyPreview ?? string.Empty,
+                        Organizer = calendarEvent.Organizer?.EmailAddress?.Name ?? string.Empty,
+                        Attendees = string.Join(",", calendarEvent.Attendees?.Select(a => a.EmailAddress?.Name).Where(a => !string.IsNullOrWhiteSpace(a)) ?? Enumerable.Empty<string>()),
+                        Start = calendarEvent?.Start?.ToDateTime(),
+                        End = calendarEvent?.End?.ToDateTime(),
+                        Location = calendarEvent?.Location?.DisplayName,
+                    });
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            try
+            {
+                ConsentHandler.HandleException(ex);
+            }
+            catch (ODataError oDataError)
+            {
+                if (oDataError?.Error != null && "ErrorAccessDenied".Equals(oDataError.Error.Code, StringComparison.OrdinalIgnoreCase))
+                {
+                    Logger.LogError($"Error: {oDataError.Error.Message}");
+
+                    var exception = new MicrosoftIdentityWebChallengeUserException(
+                        new MsalUiRequiredException(MsalError.InvalidGrantError, oDataError.Error.Message),
+                        new[] { "Calendars.Read" });
+
+                    ConsentHandler.HandleException(exception);
+                }
+            }
+        }
+    }
+
+    public class CalendarEvent {
+        public string Subject = string.Empty;
+        public string? Preview;
+        public string? Organizer;
+        public string? Attendees;
+        public DateTime? Start;
+        public DateTime? End;
+        public string? Location;
+    }
+}
